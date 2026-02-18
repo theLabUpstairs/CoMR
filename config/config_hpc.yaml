@@ -1,0 +1,41 @@
+fasta_files: []
+
+software:
+  targetp: "/mnt/software/targetp-2.0/bin/targetp"
+  mitofates: "/usr/local/bin/mitofates.sh"
+  mitoprot: "/usr/local/bin/mitoprot.sh"
+  deepmito: "/usr/local/bin/deepmito.sh"
+  hmmscan: "/opt/micromamba/envs/comr/bin/hmmscan"
+  diamond: "/opt/micromamba/envs/comr/bin/diamond"
+
+database:
+  hmmdb: "/mnt/databases/Hmm_profile/CoMR_mito.hmmdb"
+  subdb: "/mnt/databases/SubtractedDB_Feb2_2022.fasta"
+  mitodb: "/mnt/databases/MitoDB_Feb2_2022.fasta"
+  customdb: "/mnt/databases/Metamonads_MRO_July112019.fasta.dmnd"
+  nr: "/mnt/blastdb/nr.dmnd"
+  uniprot: "/mnt/databases/uniprot_sprot.fasta"
+  alignments: "/mnt/databases/Alignments/"
+
+diamond_search:
+  block_size: 4
+  max_hits: 100
+  sensitivity: "--more-sensitive"
+  taxonomy_enabled: True
+
+taxonomy:
+  accession2taxid: "/mnt/taxonomy/prot.accession2taxid.gz"
+  nodes: "/mnt/taxonomy/nodes.dmp"
+  names: "/mnt/taxonomy/names.dmp"
+
+misc:
+  threads: 32
+  threads_diamond: 32
+  batch_targetp: 100
+  align_threads_per_job: 8
+  tree_threads_per_job: 8
+  deepmito_threads: 32
+  diamond_slots: 1
+
+scores:
+  scorecard: "/opt/CoMR/CoMR_scorecards/equal.score"

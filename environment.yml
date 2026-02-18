@@ -1,0 +1,21 @@
+name: comr
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - snakemake-minimal=7.32
+  - pandas=2.1
+  - biopython=1.81
+  - ete3
+  - pyarrow
+  - hmmer=3.3.2
+  - diamond=2.1.8
+  - mafft
+  - trimal
+  - iqtree=2.3.4
+  - libsvm
+  - perl=5.32
+  - perl-app-cpanminus
+  - tqdm
+  - pip

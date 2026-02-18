@@ -1,0 +1,8 @@
+category	value	threshold
+subtractiveDB	1	DEFAULT
+targetp	1	NONE
+mitoprot	1	DEFAULT
+mitofates	1	DEFAULT
+customDB	0	DEFAULT
+blast_mito	1	DEFAULT
+tree	1	DEFAULT
