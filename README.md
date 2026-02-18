@@ -109,10 +109,10 @@ Put your input fasta(s) in the `data/` folder (extension must be .fasta).
 
 #### Docker
 
-1. Pull the image tag you were provided (example shown with `registry.example.org/comr:latest`).
+1. Pull the docker image:
 
 ```bash
-docker pull registry.example.org/comr:latest
+docker pull ghcr.io/thelabupstairs/comr:latest
 ```
 
 2. Declare your host paths once, then launch Snakemake:
