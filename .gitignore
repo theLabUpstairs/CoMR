@@ -6,6 +6,7 @@
 05_*/
 data/*_*.fasta
 data/input.fasta
+data/test*.fasta
 logs*/
 .snakemake/
 job.tmpd.*
@@ -24,3 +25,4 @@ config/config_benchmarking*
 config/exclusions*
 scripts/__pycache__/
 .inline*
+*.MFout

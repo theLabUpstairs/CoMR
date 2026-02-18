@@ -2,7 +2,7 @@
 
 CoMR is a mitochondrial/mitochondrial-related organelles (MRO) proteome
 prediction and reconstruction pipeline for both model organisms and eukaryotes
-with cryptic mitochondrial targeting signals. It combines multiple targeting
+with atypical mitochondrial targeting signals. It combines multiple targeting
 predictors, HMM searches, DIAMOND homology searches, and automated downstream
 parsing to produce scored candidate lists.
 
@@ -11,7 +11,6 @@ parsing to produce scored candidate lists.
 | If you need… | See |
 | --- | --- |
 | Steps to **run** the workflow via prebuilt container images (Docker or Singularity), including database/TargetP setup | Continue below |
-| Examples to **run** the workflow via prebuilt container images on specific systems, including database/TargetP setup | `README_gemini.md, README_dardel.md, README_perun.md`|
 | Understand how CoMR works and which steps the pipeline takes, and what outputs to expect | `README_CoMR.md`|
 | Instructions to **build** the Docker/Singularity images yourself | `README_BUILD.md` |
 
@@ -56,7 +55,7 @@ the container at `/mnt/software/targetp-2.0`.
 ### Step 4 – Download the CoMR databases
 
 1. Download the CoMR database bundle (alignments, HMM profiles, MitoDB,
-   SubtractedDB, UniProt) from the [Figshare]() and
+   SubtractedDB, UniProt) from the [Figshare](10.17044/scilifelab.31361839) and
    extract it (e.g. to `/your/path/to/CoMR_DB_hmm`).
 
 2. Make sure you have a DIAMOND-indexed NR database (`nr.dmnd`) and record the path (e.g. to `/your/path/to/blastdb`). 
@@ -88,9 +87,9 @@ Recommended `misc` values based on available CPUs/RAM (NR BLAST runs are HPC wor
 
 | Node profile | Total cores / RAM | `misc. threads` | `misc. threads_diamond` | `diamond_search. block_size` | `misc. diamond_slots` | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Workstation (debug only) | 8 cores / 32 GB | 8 | 8 | 2 | 1 | Good for smoke tests, but NR searches will take days and thrash memory/I/O. |
+| Workstation (debug only) | 8 cores / 32 GB | 8 | 8 | 2 | 1 | Good for smoke tests, with NR search disabled.|
 | Mid HPC node | 32 cores / 128 GB | 24/32 | 16 | 2-4 | 1 | Leaves 8 cores free for MAFFT/DeepMito and budgets ~2–3 GB RAM per DIAMOND thread. |
-| Large HPC node | ≥64 cores / ≥256 GB + fast scratch | 32/48 | 32 | 6–8 | 2 | Only increase `diamond_slots` if storage can handle two concurrent DIAMOND runs without thrashing. Larger block sizes give DIAMOND more RAM to buffer queries. |
+| Large HPC node | ≥64 cores / ≥256 GB + fast scratch | 32/48 | 32 | 6–8 | 2 | Only increase `diamond_slots` if storage can handle two concurrent DIAMOND runs. Larger block sizes give DIAMOND more RAM to buffer queries. |
 
 Rule of thumb: DIAMOND needs ~2–3 GB RAM per thread plus high I/O, so size
 `threads_diamond` accordingly and still leave ≥4 cores for MAFFT/IQ-TREE so tree
@@ -159,7 +158,7 @@ docker run --rm \
 
 #### Singularity / Apptainer
 
-1. Download `CoMR.sif` 
+1. Download `CoMR.sif` from the CoMR [Figshare](10.17044/scilifelab.31361839)
 
    ```bash
    curl -o CoMR.sif https://storage.example.org/comr/CoMR-1.0.sif
