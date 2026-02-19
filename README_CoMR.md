@@ -9,7 +9,7 @@ single ranked list of mitochondrial/MRO candidates ready for expert review.
 
 
 Instructions for installing dependencies or running the workflow live 
-in the other README files (see `README.md`, and the cluster-specific guides).
+in the main README file.
 
 Below is a description step-by-step of how CoMR proceeds.
 

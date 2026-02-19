@@ -10,7 +10,7 @@ parsing to produce scored candidate lists.
 
 | If you need… | See |
 | --- | --- |
-| Steps to **run** the workflow via prebuilt container images (Docker or Singularity), including database/TargetP setup | Continue below |
+| Steps to **install** and **run** the workflow via prebuilt container images (Docker or Singularity), including databases/TargetP setup | Continue below |
 | Understand how CoMR works and which steps the pipeline takes, and what outputs to expect | `README_CoMR.md`|
 | Instructions to **build** the Docker/Singularity images yourself | `README_BUILD.md` |
 
@@ -18,11 +18,10 @@ parsing to produce scored candidate lists.
 
 ## How to install and run CoMR
 
-Even when you use a prebuilt container image, you must still fetch the licensed
-TargetP binary, download the CoMR databases, and run the helper script that
-retrieves third-party tools. The container bundles Snakemake and the runtime
-environment, but these external assets must live on the host and be bind-mounted
-at run time.
+Before launching the containerized pipeline, you must fetch the licensed TargetP binary, 
+download the CoMR databases, and run the helper script that retrieves third-party tools. 
+The container bundles Snakemake and the runtime environment, 
+but these external assets must live on the host and be bind-mounted at run time.
 
 ### Step 1 – Clone the repository
 
@@ -32,8 +31,6 @@ cd CoMR
 ```
 
 ### Step 2 – Fetch MitoFates and Mitoprot II
-
-Populate `third_party/`:
 
 ```bash
 bash scripts/fetch_third_party.sh
@@ -55,7 +52,7 @@ the container at `/mnt/software/targetp-2.0`.
 ### Step 4 – Download the CoMR databases
 
 1. Download the CoMR database bundle (alignments, HMM profiles, MitoDB,
-   SubtractedDB, UniProt) from the [Figshare](10.17044/scilifelab.31361839) and
+   SubtractedDB, UniProt) from the CoMR [Figshare](https://doi.org/10.17044/scilifelab.31361839) and
    extract it (e.g. to `/your/path/to/CoMR_DB_hmm`).
 
 2. Make sure you have a DIAMOND-indexed NR database (`nr.dmnd`) and record the path (e.g. to `/your/path/to/blastdb`). 
@@ -69,7 +66,7 @@ the container at `/mnt/software/targetp-2.0`.
    CoMR needs them to annotate DIAMOND hits. Record the path (e.g. to `/your/path/to/taxonomy`)
 
 You will bind-mount these directories into the container under `/mnt/databases`, `mnt/blastdb`
-and `/mnt/taxonomy` when running Snakemake.
+and `/mnt/taxonomy` in the docker/singularity command below.
 
 
 ### Step 5 – Prepare the runtime config
@@ -81,17 +78,17 @@ cp config/config.yaml config/config_runtime.yaml
 ```
 The template is usable as it is, but you may want to specify:
 
-* Diamond options if needed. By default, `taxonomy_enabled` is set on True; if not, set it to False and mount the taxonomy DB inside the container at `/mnt/taxonomy/` in the docker command below.
+* Diamond options if needed. By default, `taxonomy_enabled` is set on True; if not, set it to False and mount the taxonomy DB inside the container at `/mnt/taxonomy/` in the docker/singularity command below.
 
-*The `misc` to adjust for your system capacity if needed.
+* The `misc` to adjust for your system capacity if needed.
 
 #### Recommended `misc` values based on available CPUs/RAM
 
 | Node profile | Total cores / RAM | threads | threads DIAMOND | DIAMOND block size | DIAMOND slots | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Workstation | 8 cores / 32 GB | 8 | 8 | 1 | 1 | Disable NR search |
-| Mid HPC node | 32 cores / 128 GB | 24/32 | 16 | 2 | 1 | Leaves 8 cores free for MAFFT/DeepMito and budgets ~2-3 GB RAM per DIAMOND thread. |
-| Large HPC node | ≥64 cores / ≥256 GB + fast scratch | 32/48 | 32 | 4+ | 2 | Only increase diamond slots if storage can handle two concurrent DIAMOND runs. Larger block sizes give DIAMOND more RAM to buffer queries. |
+| Workstation | 8 cores / 32 GB | 4-8 | 4-8 | 1 | 1 | Disable NR search |
+| Mid HPC node | 32 cores / 128 GB | 24-32 | 8-16 | 1-2 | 1 | Leaves 8 cores free for MAFFT/DeepMito and budgets ~2-3 GB RAM per DIAMOND thread. |
+| Large HPC node | ≥64 cores / ≥256 GB + fast scratch | 32-64 | 32-64 | 4+ | 2 | Only increase diamond slots if storage can handle two concurrent DIAMOND runs. Larger block sizes give DIAMOND more RAM to buffer queries. |
 
 Rule of thumb: DIAMOND needs ~2-3 GB RAM per thread plus high I/O, so size
 `threads_diamond` accordingly and still leave ≥4 cores for MAFFT/IQ-TREE so tree
@@ -102,7 +99,7 @@ default sample or sample list, otherwise provide targets dynamically via
 `--config fasta=sample or fasta=sample1,sample2` in the docker command below.
 
 Keep the docker internal paths (`/mnt/databases/...` and `/mnt/software/...`) aligned
-with the bind mounts shown below. Your actual local paths will be specified directly in the docker command below.
+with the bind mounts shown below. Your actual local paths will be specified directly in the docker/singularity command below.
 
 Put your input fasta(s) in the `data/` folder (extension must be .fasta).
 
@@ -162,10 +159,10 @@ docker run --rm \
 
 On HPC, it might be easier to rely on Singularity/Apptainer containers.
 
-1. Download `CoMR.sif` from the CoMR [Figshare](10.17044/scilifelab.31361839)
+1. Download `CoMR.sif` from the CoMR [Figshare](https://doi.org/10.17044/scilifelab.31361839)
 
    ```bash
-   curl -o CoMR.sif https://storage.example.org/comr/CoMR-1.0.sif
+   curl -o CoMR.sif https://doi.org/10.17044/scilifelab.31361839/CoMR.sif
    ```
 
 2. Execute Snakemake:
