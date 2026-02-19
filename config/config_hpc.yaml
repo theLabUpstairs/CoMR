@@ -10,9 +10,9 @@ software:
 
 database:
   hmmdb: "/mnt/databases/Hmm_profile/CoMR_mito.hmmdb"
-  subdb: "/mnt/databases/SubtractedDB_Feb2_2022.fasta"
-  mitodb: "/mnt/databases/MitoDB_Feb2_2022.fasta"
-  customdb: "/mnt/databases/Metamonads_MRO_July112019.fasta.dmnd"
+  subdb: "/mnt/databases/SMD_SubtractedDB.fasta"
+  mitodb: "/mnt/databases/SMD_MitoDB.fasta"
+  customdb: "" #/mnt/databases/
   nr: "/mnt/blastdb/nr.dmnd"
   uniprot: "/mnt/databases/uniprot_sprot.fasta"
   alignments: "/mnt/databases/Alignments/"
