@@ -16,7 +16,7 @@ parsing to produce scored candidate lists.
 
 ---
 
-## Quick start (prebuilt containers, recommended)
+## How to install and run CoMR
 
 Even when you use a prebuilt container image, you must still fetch the licensed
 TargetP binary, download the CoMR databases, and run the helper script that
@@ -74,30 +74,32 @@ and `/mnt/taxonomy` when running Snakemake.
 
 ### Step 5 – Prepare the runtime config
 
-Copy the template and adjust any parameters you need:
+Copy the template:
 
 ```bash
 cp config/config.yaml config/config_runtime.yaml
 ```
-Note: the template is usable as it is, but you may want to specify:
-- Diamond options if needed. By default, `taxonomy_enabled` is set on True; if not, set it to False and mount the taxonomy DB inside the container at `/mnt/taxonomy/` in the docker command below.
-- The `misc` to adjust for your system capacity if needed.
+The template is usable as it is, but you may want to specify:
 
-Recommended `misc` values based on available CPUs/RAM (NR BLAST runs are HPC workloads; the “workstation” profile below is for debugging only, not full production runs):
+* Diamond options if needed. By default, `taxonomy_enabled` is set on True; if not, set it to False and mount the taxonomy DB inside the container at `/mnt/taxonomy/` in the docker command below.
 
-| Node profile | Total cores / RAM | `misc. threads` | `misc. threads_diamond` | `diamond_search. block_size` | `misc. diamond_slots` | Notes |
+*The `misc` to adjust for your system capacity if needed.
+
+#### Recommended `misc` values based on available CPUs/RAM
+
+| Node profile | Total cores / RAM | threads | threads DIAMOND | DIAMOND block size | DIAMOND slots | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Workstation (debug only) | 8 cores / 32 GB | 8 | 8 | 2 | 1 | Good for smoke tests, with NR search disabled.|
-| Mid HPC node | 32 cores / 128 GB | 24/32 | 16 | 2-4 | 1 | Leaves 8 cores free for MAFFT/DeepMito and budgets ~2–3 GB RAM per DIAMOND thread. |
-| Large HPC node | ≥64 cores / ≥256 GB + fast scratch | 32/48 | 32 | 6–8 | 2 | Only increase `diamond_slots` if storage can handle two concurrent DIAMOND runs. Larger block sizes give DIAMOND more RAM to buffer queries. |
+| Workstation | 8 cores / 32 GB | 8 | 8 | 1 | 1 | Disable NR search |
+| Mid HPC node | 32 cores / 128 GB | 24/32 | 16 | 2 | 1 | Leaves 8 cores free for MAFFT/DeepMito and budgets ~2-3 GB RAM per DIAMOND thread. |
+| Large HPC node | ≥64 cores / ≥256 GB + fast scratch | 32/48 | 32 | 4+ | 2 | Only increase diamond slots if storage can handle two concurrent DIAMOND runs. Larger block sizes give DIAMOND more RAM to buffer queries. |
 
-Rule of thumb: DIAMOND needs ~2–3 GB RAM per thread plus high I/O, so size
+Rule of thumb: DIAMOND needs ~2-3 GB RAM per thread plus high I/O, so size
 `threads_diamond` accordingly and still leave ≥4 cores for MAFFT/IQ-TREE so tree
 building keeps pace once searches finish.
 
 The template leaves `fasta_files` empty on purpose; set it there if you want a
 default sample or sample list, otherwise provide targets dynamically via
-`--config fasta=sample or fasta=sample1,sample2`.
+`--config fasta=sample or fasta=sample1,sample2` in the docker command below.
 
 Keep the docker internal paths (`/mnt/databases/...` and `/mnt/software/...`) aligned
 with the bind mounts shown below. Your actual local paths will be specified directly in the docker command below.
@@ -119,7 +121,7 @@ docker pull ghcr.io/thelabupstairs/comr:latest
 
 ```bash
 
-# Declare local paths once so the bind list stays readable
+# Declare local paths once 
 # Replace "your_storage" placeholders, cores and FASTA name with your actual values
 
 COMR_ROOT=/path/to/CoMR
@@ -127,9 +129,9 @@ DB_DIR=/path/to/CoMR_DB_hmm
 NR_DMND=/path/to/blastdb/nr.dmnd
 TAXONOMY=/path/to/taxonomy
 TARGETP=/path/to/targetp-2.0
-CORES=16
+CORES=32
 FASTA_BASENAME=fasta
-IMAGE=registry.example.org/comr:latest
+IMAGE=comr:latest
 
 docker run --rm \
   --user "$(id -u)":"$(id -g)" \ # this allows you to run docker as a user
@@ -158,6 +160,8 @@ docker run --rm \
 
 #### Singularity / Apptainer
 
+On HPC, it might be easier to rely on Singularity/Apptainer containers.
+
 1. Download `CoMR.sif` from the CoMR [Figshare](10.17044/scilifelab.31361839)
 
    ```bash
@@ -168,7 +172,7 @@ docker run --rm \
 
 ```bash
 
-# Declare local paths once so the bind list stays readable
+# Declare local paths once
 # Replace "your_storage" placeholders, cores and FASTA name with your actual values
 
 COMR_ROOT=/path/to/CoMR
