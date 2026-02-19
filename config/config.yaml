@@ -22,6 +22,9 @@ diamond_search:
   max_hits: 100
   sensitivity: "--more-sensitive"
   taxonomy_enabled: True
+  # excluded_taxids:
+  #   - taxid
+  # excluded_taxids_file: "config/exclusions/listoftaxids"
 
 taxonomy:
   accession2taxid: "/mnt/taxonomy/prot.accession2taxid.gz"
