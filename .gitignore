@@ -19,7 +19,8 @@ dag.sh
 third_party*
 example_commands*
 comr_latest*
-comr.sh
+comr*.sh
+run_comr*.sh
 config/config_runtime.yaml
 config/config_benchmarking*
 config/exclusions*
