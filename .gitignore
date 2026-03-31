@@ -20,6 +20,7 @@ third_party*
 example_commands*
 comr_latest*
 comr*.sh
+*.out
 run_comr*.sh
 config/config_runtime.yaml
 config/config_benchmarking*
