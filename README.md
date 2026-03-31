@@ -186,7 +186,8 @@ mkdir -p "$COMR_ROOT/.inline_cache"
 
 srun singularity exec \
   --bind "$DB_DIR:/mnt/databases:ro" \
-  --bind "$BLAST_DB:/mnt/blastdb:ro" \
+  --bind "$NR_DMND:/mnt/blastdb:ro" \
+  --bind "TAXONOMY=/mnt/databases/taxonomy:ro" \
   --bind "$TARGETP:/mnt/software/targetp-2.0:ro" \
   --bind "$COMR_ROOT:/opt/CoMR" \
   --bind "$COMR_ROOT/.inline_cache:/opt/software/MitoFates/bin/modules/_Inline" \
