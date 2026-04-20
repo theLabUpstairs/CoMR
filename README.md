@@ -1,159 +1,226 @@
-# CoMR — Comprehensive Mitochondrial Reconstructor
+# CoMR — Quick Setup and Run Guide
 
-CoMR is a mitochondrial/mitochondrial-related organelles (MRO) proteome
-prediction and reconstruction pipeline for both model organisms and eukaryotes
-with atypical mitochondrial targeting signals. It combines multiple targeting
-predictors, HMM searches, DIAMOND homology searches, and automated downstream
-parsing to produce scored candidate lists.
+CoMR is a mitochondrial / mitochondrial-related organelle (MRO) proteome
+prediction and reconstruction workflow for model organisms and eukaryotes with
+atypical targeting signals. It combines targeting predictors, HMM searches,
+DIAMOND homology searches, and downstream parsing to produce scored candidate
+lists.
 
-## How to use this repository
+## Choose the right document
 
-| If you need… | See |
+| If you want to... | Read |
 | --- | --- |
-| Steps to **install** and **run** the workflow via prebuilt container images (Docker or Singularity), including databases/TargetP setup | Continue below |
-| Understand how CoMR works and which steps the pipeline takes, and what outputs to expect | `README_CoMR.md`|
-| Instructions to **build** the Docker/Singularity images yourself | `README_BUILD.md` |
+| Install and run the packaged workflow | `README.md` |
+| Understand pipeline logic, outputs, and scoring | `README_CoMR.md` |
+| Build the container images yourself | `README_BUILD.md` |
 
----
+## Before you start
 
-## How to install and run CoMR
+The CoMR container includes Snakemake and the runtime software environment, but
+you still need to provide a few host-side assets:
 
-Before launching the containerized pipeline, you must fetch the licensed TargetP binary, 
-download the CoMR databases, and run the helper script that retrieves third-party tools. 
-The container bundles Snakemake and the runtime environment, 
-but these external assets must live on the host and be bind-mounted at run time.
+| Required on host | Why |
+| --- | --- |
+| CoMR repository clone | Workflow code and config |
+| TargetP 2.0 binary | Licensed external dependency |
+| CoMR database bundle | HMMs, alignments, MitoDB, SubtractedDB, UniProt |
+| DIAMOND-formatted NR database | Optional but recommended NR homology search |
+| NCBI taxonomy files | Needed if taxonomy is not embedded in `nr.dmnd` |
 
-### Step 1 – Clone the repository
+## Quick start
+
+### 1. Clone CoMR
 
 ```bash
 git clone https://github.com/theLabUpstairs/CoMR.git
 cd CoMR
 ```
 
-### Step 2 – Fetch MitoFates and Mitoprot II
+### 2. Fetch bundled third-party tools
 
 ```bash
 bash scripts/fetch_third_party.sh
 ```
 
-### Step 3 – Install TargetP (licensed)
+This retrieves MitoFates and Mitoprot II.
 
-Request a TargetP 2.0 license at [DTU Health Tech](https://services.healthtech.dtu.dk/services/TargetP-2.0/),
-download the Linux archive, and extract it somewhere readable by your account and record the path (e.g. to `/your/path/to/targetp-2.0`)
+### 3. Install TargetP 2.0
+
+Request a license from [DTU Health Tech](https://services.healthtech.dtu.dk/services/TargetP-2.0/),
+download the Linux archive, and unpack it somewhere readable on the host, for
+example `/your/path/to/targetp-2.0`.
 
 ```bash
 tar -xzf targetp-2.0.Linux.tar.gz
 chmod -R 755 targetp-2.0
 ```
 
-The directory containing `bin/targetp` will later be mounted read-only inside
-the container at `/mnt/software/targetp-2.0`.
+CoMR expects this directory to be mounted inside the container as
+`/mnt/software/targetp-2.0`.
 
-### Step 4 – Download the CoMR databases
+### 4. Prepare the databases
 
-1. Download and extract (unzip) the CoMR database bundle (alignments, HMM profiles, MitoDB,
-   SubtractedDB, UniProt) from the CoMR [Figshare](https://doi.org/10.17044/scilifelab.31361839)(e.g. to `/your/path/to/CoMR_DB_hmm`).
+#### 4.1 CoMR bundle
 
-2. Make sure you have a DIAMOND-indexed NR database (`nr.dmnd`) and record the path (e.g. to `/your/path/to/blastdb`). 
-   Follow the [DIAMOND documentation](https://github.com/bbuchfink/diamond/wiki) if you
-   need to build one. Record whether taxonomy data were included. 
-   Note: NR search can be disabled if no diamond indexed NR database is available.
+Download and extract the CoMR database bundle `CoMR_DB_hmm` from
+[Figshare](https://doi.org/10.17044/scilifelab.31361839), including:
 
-3. If your DIAMOND-indexed NR database was built without taxonomy support, 
-   make sure you have access [NCBI taxonomy dumps](https://ftp.ncbi.nih.gov/pub/taxonomy/) 
-   (`prot.accession2taxid.gz`, `nodes.dmp`, `names.dmp`).
-   CoMR needs them to annotate DIAMOND hits. Record the path (e.g. to `/your/path/to/taxonomy`)
+- `Alignments/`
+- `Hmm_profile/`
+- `SMD_MitoDB.fasta`
+- `SMD_SubtractedDB.fasta`
+- `uniprot_sprot.fasta`
 
-You will bind-mount these directories into the container under `/mnt/databases`, `mnt/blastdb`
-and `/mnt/taxonomy` in the docker/singularity command below.
+Example host location: `/your/path/to/CoMR_DB_hmm`. If you wish to use an optional Custom Database, place it at the same location.
 
+#### 4.2 NR database for DIAMOND
 
-### Step 5 – Prepare the runtime config
+If you want the NR search stage, prepare `nr.dmnd` and record its path.
+Example host location: `/your/path/to/blastdb/nr.dmnd`
+
+Build NR with embedded taxonomy:
+
+```bash
+mkdir -p /your/path/to/blastdb
+cd /your/path/to/blastdb
+wget https://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz
+wget https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.FULL.gz
+wget https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/new_taxdump/new_taxdump.tar.gz
+tar -xzf new_taxdump.tar.gz names.dmp nodes.dmp
+
+diamond makedb \
+  --in nr.gz \
+  --db nr \
+  --taxonmap prot.accession2taxid.FULL.gz \
+  --taxonnodes nodes.dmp \
+  --taxonnames names.dmp
+```
+
+If you already have a DIAMOND NR database without taxonomy support, also keep
+these NCBI taxonomy files available:
+
+- `prot.accession2taxid.gz`
+- `nodes.dmp`
+- `names.dmp`
+
+Example host location: `/your/path/to/taxonomy`
+
+If you do not have an NR database, CoMR can still run with NR searches disabled using
+`enable_nr=false`.
+
+### 5. Create the runtime config
 
 Copy the template:
 
 ```bash
 cp config/config.yaml config/config_runtime.yaml
 ```
-The template is usable as it is, but you may want to specify:
 
-* Diamond options if needed. By default, `taxonomy_enabled` is set on True; if not, set it to False and mount the taxonomy DB inside the container at `/mnt/taxonomy/` in the docker/singularity command below.
+The template is intended to run with minimal edits. In practice, these are the
+settings users most often change:
 
-* The `misc` to adjust for your system capacity if needed.
+#### 5.1 Optional search settings
 
-* `output_dir` if you want CoMR logs and declared outputs to be written outside
-  the repository root.
+In case your Diamond-indexed NR database was built without taxonomy:
 
-#### Recommended `misc` values based on available CPUs/RAM
-
-| Node profile | Total cores / RAM | threads | threads DIAMOND | DIAMOND block size | DIAMOND slots | Notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| Workstation | 8 cores / 32 GB | 4-8 | 4-8 | 1 | 1 | Disable NR search |
-| Mid HPC node | 32 cores / 128 GB | 24-32 | 8-16 | 1-2 | 1 | Leaves 8 cores free for MAFFT/DeepMito and budgets ~2-3 GB RAM per DIAMOND thread. |
-| Large HPC node | ≥64 cores / ≥256 GB + fast scratch | 32-64 | 32-64 | 4+ | 2 | Only increase diamond slots if storage can handle two concurrent DIAMOND runs. Larger block sizes give DIAMOND more RAM to buffer queries. |
-
-Rule of thumb: DIAMOND needs ~2-3 GB RAM per thread plus high I/O, so size
-`threads_diamond` accordingly and still leave ≥4 cores for MAFFT/IQ-TREE so tree
-building keeps pace once searches finish.
-
-The template leaves `fasta_files` empty on purpose; set it there if you want a
-default sample or sample list. You can also provide inputs dynamically at run
-time with `--config fasta=sample.pep`, `--config fasta=sample1.pep,sample2.fasta`, or
-`--config fasta=/path/to/sample.fasta`.
-
-Keep the docker internal paths (`/mnt/databases/...` and `/mnt/software/...`) aligned
-with the bind mounts shown below. Your actual local paths will be specified directly in the docker/singularity command below.
-
-CoMR accepts FASTA inputs in two ways:
-
-* Legacy shorthand: put your input file in `data/` and refer to it by filename,
-  for example `--config fasta=proteins.fasta`
-* Explicit paths: provide one or more FASTA paths directly, for example
-  `--config fasta=/path/to/proteins.fasta` or set `fasta_files` in the runtime
-  config to a list of paths. Example:
-
-  ```yaml
-  fasta_files:
-    - /path/to/sample1.fasta
-    - /path/to/sample2.fa
-  ```
-
-Accepted input extensions are `.fasta`, `.fa`, `.fas`, `.aa`, and `.pep`.
-Internally, CoMR normalizes all accepted inputs to its own `.fasta`
-intermediates before running TargetP and MitoFates.
-
-Each input must resolve to a unique sample basename. For example,
-`sample.fasta` and `sample.pep` would collide and should not be provided
-together unless one is renamed.
-
-CoMR also supports a configurable output root. Set `output_dir` in
-`config_runtime.yaml` or pass it dynamically with
-`--config output_dir=/path/to/comr_results`. This redirects declared workflow
-outputs and logs, including `00_data_format_<FASTA>/`,
-`01_analysis_original_<FASTA>/`, `02_analysis_parsed_<FASTA>/`,
-`03_alignments_<FASTA>/`, `04_trees_<FASTA>/`, `05_CoMR_<FASTA>/`, and
-`logs_<FASTA>/`, under the chosen directory. Internal runtime/cache files such
-as `.snakemake/` and `.inline_cache/` remain under the CoMR installation
-directory.
-
-
-### Step 6 – Run CoMR from the container image
-
-#### Docker
-
-1. Pull the docker image:
-
-```bash
-docker pull ghcr.io/thelabupstairs/comr:latest
+```yaml
+diamond_search:
+  taxonomy_enabled: False
 ```
 
-2. Declare your host paths once, then launch Snakemake:
+Enable an optional CustomDB FASTA:
+
+```yaml
+database:
+  customdb: "/mnt/databases/your_custom_db.fasta"
+```
+
+If `customdb` is set, also run CoMR with `enable_customdb=true` and be sure your Custom DB exists at `/your/path/to/CoMR_DB_hmm`.
+
+Exclude specific taxa from NR hits by taxid:
+
+```yaml
+diamond_search:
+  excluded_taxids:
+    - 9606
+    - 10090
+```
+
+Or exclude taxa from a one-taxid-per-line file:
+
+```yaml
+diamond_search:
+  excluded_taxids_file: "config/exclusions/listoftaxids.txt"
+```
+
+Use taxon exclusion only when `taxonomy_enabled: True`.
+
+#### 5.2 Resource settings
+
+Adjust the `misc` section to match your hardware:
+
+| Node profile | Total cores / RAM | `threads` | `threads_diamond` | `block_size` | `diamond_slots` | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| Workstation | 8 cores / 32 GB | 4-8 | 4-8 | 1 | 1 | Often best to disable NR |
+| Mid-size HPC | 32 cores / 128 GB | 24-32 | 8-16 | 1-2 | 1 | Leave CPU headroom for MAFFT and DeepMito |
+| Large HPC | 64+ cores / 256+ GB | 32-64 | 32-64 | 4+ | 2 | Only raise `diamond_slots` if storage/RAM can keep up |
+
+Rule of thumb: DIAMOND typically needs about 2-3 GB RAM per thread plus strong
+I/O.
+
+#### 5.3 Input and output settings
+
+You can define input FASTA files in the config:
+
+```yaml
+fasta_files:
+  - /path/to/sample1.fasta
+  - /path/to/sample2.fa
+```
+
+Or pass them dynamically at runtime:
 
 ```bash
+--config fasta=sample.pep
+--config fasta=/path/to/sample.fasta
+--config fasta=/path/to/sample1.fasta,/path/to/sample2.fasta
+```
 
-# Declare local paths once 
-# Replace "your_storage" placeholders, cores and FASTA name with your actual values
+Accepted input extensions:
 
+- `.fasta`
+- `.fa`
+- `.fas`
+- `.aa`
+- `.pep`
+
+Each input must resolve to a unique sample basename. For example,
+`sample.fasta` and `sample.pep` will collide.
+
+To send declared outputs outside the repository, set:
+
+```yaml
+output_dir: "/path/to/comr_results"
+```
+
+This redirects workflow outputs and logs such as:
+
+- `00_data_format_<FASTA>/`
+- `01_analysis_original_<FASTA>/`
+- `02_analysis_parsed_<FASTA>/`
+- `03_alignments_<FASTA>/`
+- `04_trees_<FASTA>/`
+- `05_CoMR_<FASTA>/`
+- `logs_<FASTA>/`
+
+Internal runtime/cache directories such as `.snakemake/` and `.inline_cache/`
+remain under the CoMR installation directory.
+
+## Run CoMR
+
+Set your local paths once:
+
+```bash
 COMR_ROOT=/path/to/CoMR
 DB_DIR=/path/to/CoMR_DB_hmm
 NR_DMND=/path/to/blastdb/nr.dmnd
@@ -162,78 +229,119 @@ TARGETP=/path/to/targetp-2.0
 CORES=32
 FASTA_INPUT=proteins.pep
 OUTPUT_DIR=/path/to/comr_results
+```
+
+Keep the container-internal paths consistent with the config:
+
+- databases under `/mnt/databases`
+- NR under `/mnt/blastdb`
+- taxonomy under `/mnt/taxonomy`
+- TargetP under `/mnt/software/targetp-2.0`
+
+### Docker
+
+Pull the image:
+
+```bash
+docker pull ghcr.io/thelabupstairs/comr:latest
+```
+
+Run:
+
+```bash
 IMAGE=comr:latest
 
 docker run --rm \
-  --user "$(id -u)":"$(id -g)" \ # this allows you to run docker as a user
+  --user "$(id -u)":"$(id -g)" \
   -e HOME=/opt/CoMR \
-  -v "$DB_DIR:/mnt/databases:ro" \  
-  -v "$NR_DMND:/mnt/databases/nr.dmnd:ro" \
-  -v "$TAXONOMY:/mnt/databases/taxonomy:ro" \
+  -v "$DB_DIR:/mnt/databases:ro" \
+  -v "$NR_DMND:/mnt/blastdb/nr.dmnd:ro" \
+  -v "$TAXONOMY:/mnt/taxonomy:ro" \
   -v "$TARGETP:/mnt/software/targetp-2.0:ro" \
   -v "$COMR_ROOT:/opt/CoMR" \
   -w /opt/CoMR \
   "$IMAGE" \
   snakemake --cores "$CORES" \
     --configfile config/config_runtime.yaml \
-    --config fasta="$FASTA_INPUT" output_dir="$OUTPUT_DIR" #enable_customdb=true #enable_nr=false
+    --config fasta="$FASTA_INPUT" output_dir="$OUTPUT_DIR"
 ```
 
-- Use the command `id` to get additional group IDs needed for shared filesystems and
-  pass them via repeated `--group-add <gid>`.
-- When overriding multiple keys, include them all after a single `--config`
-  flag (e.g. `--config fasta=your_sample.pep enable_nr=false` or
-  `--config fasta=/path/to/your_sample.fas output_dir=/path/to/comr_results enable_nr=false`) because Snakemake only honors
-  the last `--config` option.
-- Append `enable_customdb=true` inside the `--config` block to activate the optional
-  CustomDB search/parse steps.
-- Append `enable_nr=false` to temporarily skip the NR DIAMOND search/parse stage if the database
-  is not available.
+Notes:
 
-#### Singularity / Apptainer
+- Add `enable_customdb=true` inside the same `--config` block to enable CustomDB
+- Add `enable_nr=false` inside the same `--config` block to skip NR
+- If you override multiple keys, keep them after a single `--config`
+- Use repeated `--group-add <gid>` if your filesystem permissions require
+  additional groups
 
-On HPC, it might be easier to rely on Singularity/Apptainer containers.
-
-1. Download `CoMR.sif` from the CoMR [Figshare](https://doi.org/10.17044/scilifelab.31361839)
-
-   ```bash
-   curl -o CoMR.sif https://doi.org/10.17044/scilifelab.31361839/CoMR.sif
-   ```
-
-2. Execute Snakemake:
+Example with multiple overrides:
 
 ```bash
+snakemake --cores "$CORES" \
+  --configfile config/config_runtime.yaml \
+  --config fasta="$FASTA_INPUT" output_dir="$OUTPUT_DIR" enable_customdb=true
+```
 
-# Declare local paths once
-# Replace "your_storage" placeholders, cores and FASTA name with your actual values
+### Singularity / Apptainer (recommended on HPCs)
 
-COMR_ROOT=/path/to/CoMR
+Download the image:
+
+```bash
+curl -o CoMR.sif https://doi.org/10.17044/scilifelab.31361839/CoMR.sif
+```
+
+Set:
+
+```bash
 COMR_IMAGE=/path/to/CoMR.sif
-DB_DIR=/path/to/CoMR_DB_hmm
-NR_DMND=/path/to/blastdb/nr.dmnd
-TAXONOMY=/path/to/taxonomy
-TARGETP=/path/to/targetp-2.0
-CORES=32
-FASTA_INPUT=proteins.pep
-OUTPUT_DIR=/path/to/comr_results
-
 cd "$COMR_ROOT"
 mkdir -p "$COMR_ROOT/.inline_cache"
+```
 
+On Slurm systems:
+
+```bash
 srun singularity exec \
   --bind "$DB_DIR:/mnt/databases:ro" \
   --bind "$NR_DMND:/mnt/blastdb:ro" \
-  --bind "TAXONOMY=/mnt/databases/taxonomy:ro" \
+  --bind "$TAXONOMY:/mnt/taxonomy:ro" \
   --bind "$TARGETP:/mnt/software/targetp-2.0:ro" \
   --bind "$COMR_ROOT:/opt/CoMR" \
   --bind "$COMR_ROOT/.inline_cache:/opt/software/MitoFates/bin/modules/_Inline" \
   "$COMR_IMAGE" \
   snakemake --cores "$CORES" \
     --configfile config/config_runtime.yaml \
-    --config fasta="$FASTA_INPUT" output_dir="$OUTPUT_DIR" #enable_customdb=true #enable_nr=false
+    --config fasta="$FASTA_INPUT" output_dir="$OUTPUT_DIR"
 ```
 
-Include `enable_customdb=true` in the `--config` arguments if you need the
-CustomDB workflow stages, or `enable_nr=false` if the NR database is not available.
-As with Docker, pass multiple overrides in a single `--config` flag so that every
-key takes effect.
+On systems without Slurm:
+
+```bash
+singularity exec \
+  --bind "$DB_DIR:/mnt/databases:ro" \
+  --bind "$NR_DMND:/mnt/blastdb:ro" \
+  --bind "$TAXONOMY:/mnt/taxonomy:ro" \
+  --bind "$TARGETP:/mnt/software/targetp-2.0:ro" \
+  --bind "$COMR_ROOT:/opt/CoMR" \
+  --bind "$COMR_ROOT/.inline_cache:/opt/software/MitoFates/bin/modules/_Inline" \
+  "$COMR_IMAGE" \
+  snakemake --cores "$CORES" \
+    --configfile config/config_runtime.yaml \
+    --config fasta="$FASTA_INPUT" output_dir="$OUTPUT_DIR"
+```
+
+If your system uses Apptainer, replace `singularity exec` with `apptainer exec`.
+If you are on an HPC system, check your local site documentation or ask your
+system administrators for the correct module setup, scheduler integration, and
+container invocation pattern.
+
+## Practical reminders
+
+- Record which version and location of every external asset you use
+- Keep host paths and container paths consistent
+- If NR taxonomy is not embedded in `nr.dmnd`, make sure taxonomy files are
+  mounted separately
+- If you disable NR, CoMR can still run, but NR-based search/parse stages will
+  be skipped
+- If you enable CustomDB, make sure the FASTA exists inside the mounted
+  database directory and pass `enable_customdb=true`
