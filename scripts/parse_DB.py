@@ -12,7 +12,26 @@ subtractive_db_output = snakemake.input[1]
 output_file = snakemake.output[0]
 log_file = snakemake.log[0]
 
+def _empty_hit_df(categories, prefix):
+    """Return an empty dataframe with the expected parsed hit columns."""
+    cols = []
+    for cat in categories:
+        cols.extend(
+            [
+                f"{prefix}_{cat}_name",
+                f"{prefix}_{cat}_evalue",
+                f"{prefix}_{cat}_bitscore",
+            ]
+        )
+    df = pd.DataFrame(columns=cols)
+    df.index.name = "Query"
+    return df
+
+
 def parse_blast_results(blast_output, categories, prefix):
+    if os.path.getsize(blast_output) == 0:
+        return _empty_hit_df(categories, prefix)
+
     results = SearchIO.parse(blast_output, "blast-tab")
     rows = []
 
@@ -33,6 +52,9 @@ def parse_blast_results(blast_output, categories, prefix):
                 row[f"{prefix}_{category}_bitscore"] = hsp.bitscore
 
         rows.append(row)
+
+    if not rows:
+        return _empty_hit_df(categories, prefix)
 
     df = pd.DataFrame(rows).set_index("Query")
 
@@ -156,6 +178,13 @@ def compare_hits(mito_df, sub_df, categories):
         except Exception as e:
             print(f"Error processing Query {query}: {e}")
             raise
+
+    if not result_rows:
+        result_df = pd.DataFrame(
+            columns=["Subtractive_DB_score", "Subtractive_DB_best_hit"]
+        )
+        result_df.index.name = "Query"
+        return result_df
 
     result_df = pd.DataFrame(result_rows).set_index("Query")
 

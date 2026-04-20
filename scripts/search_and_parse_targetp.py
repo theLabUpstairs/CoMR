@@ -3,6 +3,8 @@ import pandas as pd
 import os, subprocess
 from Bio import SeqIO
 import sys
+from pathlib import Path
+import shutil
 
 input_file_1 = snakemake.input.input1 #whole fasta
 input_file_2 = snakemake.input.input2 #M start only fasta
@@ -12,11 +14,12 @@ software_path = snakemake.params.software_path
 batch = snakemake.params.batch_path
 
 def targetp(input_file_1, input_file_2, output_file_1, output_file_2):
-    input_fasta_bn = os.path.basename(input_file_2).split(".fasta")[0]
+    input_fasta_bn = Path(input_file_2).stem
+    output_dir = Path(output_file_2).parent.resolve()
     your_command = f"{software_path} -org non-pl -batch {batch} -fasta {input_file_2} > /dev/null"
-    subprocess.run(your_command, shell=True)
-    summary_file = f"{input_fasta_bn}_summary.targetp2"
-    targetp_open = open(summary_file).readlines()
+    subprocess.run(your_command, shell=True, check=True, cwd=output_dir)
+    summary_file = output_dir / f"{input_fasta_bn}_summary.targetp2"
+    targetp_open = summary_file.open().readlines()
     # this runs targetp on metstart seq only
 
     # Parse the indexed fasta file to get all sequence identifiers
@@ -56,7 +59,7 @@ def targetp(input_file_1, input_file_2, output_file_1, output_file_2):
     # Create DataFrame and write it to CSV 
     df = pd.DataFrame(rows)
     df.to_csv(output_file_1, index=False) # save parse targetp output
-    os.rename(summary_file, output_file_2) # save original targetp output
+    shutil.move(str(summary_file), output_file_2) # save original targetp output
 
 
 # Redirect stdout and stderr to the Snakemake log file

@@ -113,7 +113,7 @@ def parse_diamond(diamond_output, taxonomy_output, taxonomy_enabled, excluded_ta
             #print(f"Debug: Cleaned hit description: {hit_desc_cleaned}", flush=True)
 
             # Top non-hypothetical hit
-            if "hypothetical" not in hit_desc_cleaned and top_hypo == 0:
+            if not re.search(r"\b(hypothetical|unnamed)\b", hit_desc_cleaned) and top_hypo == 0:
                 top_non_hypo_acc = hit['sseqid']
                 top_non_hypo_desc = hit_desc
                 top_non_hypo_evalue = hit['evalue']

@@ -51,9 +51,8 @@ the container at `/mnt/software/targetp-2.0`.
 
 ### Step 4 – Download the CoMR databases
 
-1. Download the CoMR database bundle (alignments, HMM profiles, MitoDB,
-   SubtractedDB, UniProt) from the CoMR [Figshare](https://doi.org/10.17044/scilifelab.31361839) and
-   extract it (e.g. to `/your/path/to/CoMR_DB_hmm`).
+1. Download and extract (unzip) the CoMR database bundle (alignments, HMM profiles, MitoDB,
+   SubtractedDB, UniProt) from the CoMR [Figshare](https://doi.org/10.17044/scilifelab.31361839)(e.g. to `/your/path/to/CoMR_DB_hmm`).
 
 2. Make sure you have a DIAMOND-indexed NR database (`nr.dmnd`) and record the path (e.g. to `/your/path/to/blastdb`). 
    Follow the [DIAMOND documentation](https://github.com/bbuchfink/diamond/wiki) if you
@@ -82,6 +81,9 @@ The template is usable as it is, but you may want to specify:
 
 * The `misc` to adjust for your system capacity if needed.
 
+* `output_dir` if you want CoMR logs and declared outputs to be written outside
+  the repository root.
+
 #### Recommended `misc` values based on available CPUs/RAM
 
 | Node profile | Total cores / RAM | threads | threads DIAMOND | DIAMOND block size | DIAMOND slots | Notes |
@@ -95,13 +97,44 @@ Rule of thumb: DIAMOND needs ~2-3 GB RAM per thread plus high I/O, so size
 building keeps pace once searches finish.
 
 The template leaves `fasta_files` empty on purpose; set it there if you want a
-default sample or sample list, otherwise provide targets dynamically via
-`--config fasta=sample or fasta=sample1,sample2` in the docker command below.
+default sample or sample list. You can also provide inputs dynamically at run
+time with `--config fasta=sample.pep`, `--config fasta=sample1.pep,sample2.fasta`, or
+`--config fasta=/path/to/sample.fasta`.
 
 Keep the docker internal paths (`/mnt/databases/...` and `/mnt/software/...`) aligned
 with the bind mounts shown below. Your actual local paths will be specified directly in the docker/singularity command below.
 
-Put your input fasta(s) in the `data/` folder (extension must be .fasta).
+CoMR accepts FASTA inputs in two ways:
+
+* Legacy shorthand: put your input file in `data/` and refer to it by filename,
+  for example `--config fasta=proteins.fasta`
+* Explicit paths: provide one or more FASTA paths directly, for example
+  `--config fasta=/path/to/proteins.fasta` or set `fasta_files` in the runtime
+  config to a list of paths. Example:
+
+  ```yaml
+  fasta_files:
+    - /path/to/sample1.fasta
+    - /path/to/sample2.fa
+  ```
+
+Accepted input extensions are `.fasta`, `.fa`, `.fas`, `.aa`, and `.pep`.
+Internally, CoMR normalizes all accepted inputs to its own `.fasta`
+intermediates before running TargetP and MitoFates.
+
+Each input must resolve to a unique sample basename. For example,
+`sample.fasta` and `sample.pep` would collide and should not be provided
+together unless one is renamed.
+
+CoMR also supports a configurable output root. Set `output_dir` in
+`config_runtime.yaml` or pass it dynamically with
+`--config output_dir=/path/to/comr_results`. This redirects declared workflow
+outputs and logs, including `00_data_format_<FASTA>/`,
+`01_analysis_original_<FASTA>/`, `02_analysis_parsed_<FASTA>/`,
+`03_alignments_<FASTA>/`, `04_trees_<FASTA>/`, `05_CoMR_<FASTA>/`, and
+`logs_<FASTA>/`, under the chosen directory. Internal runtime/cache files such
+as `.snakemake/` and `.inline_cache/` remain under the CoMR installation
+directory.
 
 
 ### Step 6 – Run CoMR from the container image
@@ -127,7 +160,8 @@ NR_DMND=/path/to/blastdb/nr.dmnd
 TAXONOMY=/path/to/taxonomy
 TARGETP=/path/to/targetp-2.0
 CORES=32
-FASTA_BASENAME=fasta
+FASTA_INPUT=proteins.pep
+OUTPUT_DIR=/path/to/comr_results
 IMAGE=comr:latest
 
 docker run --rm \
@@ -142,13 +176,14 @@ docker run --rm \
   "$IMAGE" \
   snakemake --cores "$CORES" \
     --configfile config/config_runtime.yaml \
-    --config fasta="$FASTA_BASENAME" #enable_customdb=true #enable_nr=false
+    --config fasta="$FASTA_INPUT" output_dir="$OUTPUT_DIR" #enable_customdb=true #enable_nr=false
 ```
 
 - Use the command `id` to get additional group IDs needed for shared filesystems and
   pass them via repeated `--group-add <gid>`.
 - When overriding multiple keys, include them all after a single `--config`
-  flag (e.g. `--config fasta=your.fasta enable_nr=false`) because Snakemake only honors
+  flag (e.g. `--config fasta=your_sample.pep enable_nr=false` or
+  `--config fasta=/path/to/your_sample.fas output_dir=/path/to/comr_results enable_nr=false`) because Snakemake only honors
   the last `--config` option.
 - Append `enable_customdb=true` inside the `--config` block to activate the optional
   CustomDB search/parse steps.
@@ -179,7 +214,8 @@ NR_DMND=/path/to/blastdb/nr.dmnd
 TAXONOMY=/path/to/taxonomy
 TARGETP=/path/to/targetp-2.0
 CORES=32
-FASTA_BASENAME=fasta
+FASTA_INPUT=proteins.pep
+OUTPUT_DIR=/path/to/comr_results
 
 cd "$COMR_ROOT"
 mkdir -p "$COMR_ROOT/.inline_cache"
@@ -194,7 +230,7 @@ srun singularity exec \
   "$COMR_IMAGE" \
   snakemake --cores "$CORES" \
     --configfile config/config_runtime.yaml \
-    --config fasta="$FASTA_BASENAME" #enable_customdb=true #enable_nr=false
+    --config fasta="$FASTA_INPUT" output_dir="$OUTPUT_DIR" #enable_customdb=true #enable_nr=false
 ```
 
 Include `enable_customdb=true` in the `--config` arguments if you need the

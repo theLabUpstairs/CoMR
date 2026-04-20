@@ -7,6 +7,8 @@ from Bio import SearchIO, SeqIO
 import random, string
 import sys
 import time
+from pathlib import Path
+import shutil
 
 input_file_1 = snakemake.input.input1 #whole fasta
 input_file_2 = snakemake.input.input2 #M start only fasta
@@ -16,11 +18,12 @@ software_path = snakemake.params.software_path
 
 
 def mitofates(input_file_1, input_file_2, output_file_1, output_file_2):
-    input_fasta_bn = os.path.basename(input_file_2).split(".fasta")[0]
+    input_fasta_bn = Path(input_file_2).stem
+    output_dir = Path(output_file_2).parent.resolve()
     your_command = f"{software_path} {input_file_2} fungi > {input_fasta_bn}.MFout"
-    subprocess.run(your_command, shell=True)
-    summary_file = f"{input_fasta_bn}.MFout"
-    mitofates_open = open(summary_file).readlines()
+    subprocess.run(your_command, shell=True, check=True, cwd=output_dir)
+    summary_file = output_dir / f"{input_fasta_bn}.MFout"
+    mitofates_open = summary_file.open().readlines()
     # this runs mitofates on metstart seq only
 
     # Parse the indexed fasta file to get all sequence identifiers
@@ -57,7 +60,7 @@ def mitofates(input_file_1, input_file_2, output_file_1, output_file_2):
     # Create DataFrame and write it to CSV 
     df = pd.DataFrame(rows)
     df.to_csv(output_file_1, index=False) # save parse targetp output
-    os.rename(summary_file, output_file_2) # save original targetp output
+    shutil.move(str(summary_file), output_file_2) # save original targetp output
 
 
 # Redirect low-level file descriptors (Perl)
@@ -76,4 +79,3 @@ with open(snakemake.log[0], "w") as log_file:
     # Call the mitofates function
     mitofates(input_file_1, input_file_2, output_file_1, output_file_2)
     print("Mitofates done.", flush=True)
-

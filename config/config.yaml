@@ -1,4 +1,5 @@
 fasta_files: []
+output_dir: "."
 
 software:
   targetp: "/mnt/software/targetp-2.0/bin/targetp"

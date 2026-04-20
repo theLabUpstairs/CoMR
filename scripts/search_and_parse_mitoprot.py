@@ -4,6 +4,7 @@ import subprocess
 import pandas as pd
 from Bio import SeqIO
 import sys
+import shutil
 
 # Snakemake inputs and outputs
 input_file = snakemake.input.input2  # Multi-FASTA input
@@ -77,29 +78,28 @@ def main():
 
         # Step 1: Split the input multi-FASTA file
         temp_dir = os.path.join(os.path.dirname(output_csv), "temp_sequences")
-        fasta_files = split_fasta(input_file, temp_dir)
-        print(f"Running MitoProt on {len(fasta_files)} sequence(s).", flush=True)
+        try:
+            fasta_files = split_fasta(input_file, temp_dir)
+            print(f"Running MitoProt on {len(fasta_files)} sequence(s).", flush=True)
 
-        # Step 2: Run MitoProt on each sequence and concatenate outputs
-        print("Starting Mitoprot")
-        parsed_results = []
-        with open(output_summary, "w") as summary_handle:
-            for fasta_file in fasta_files:
-                run_mitoprot(fasta_file, software_path)
-                # Append raw MitoProt output to the summary
-                raw_output = parse_mitoprot_results(fasta_file, os.path.dirname(fasta_file), parsed_results)
-                summary_handle.writelines(raw_output)
-                summary_handle.write("\n")
+            # Step 2: Run MitoProt on each sequence and concatenate outputs
+            print("Starting Mitoprot")
+            parsed_results = []
+            with open(output_summary, "w") as summary_handle:
+                for fasta_file in fasta_files:
+                    run_mitoprot(fasta_file, software_path)
+                    # Append raw MitoProt output to the summary
+                    raw_output = parse_mitoprot_results(fasta_file, os.path.dirname(fasta_file), parsed_results)
+                    summary_handle.writelines(raw_output)
+                    summary_handle.write("\n")
 
-        # Step 3: Aggregate results into a single CSV
-        df = pd.DataFrame(parsed_results)
-        df.to_csv(output_csv, index=False)
-
-        # Cleanup temporary directory (optional)
-        for file in os.listdir(temp_dir):
-            os.remove(os.path.join(temp_dir, file))
-        os.rmdir(temp_dir)
-        print("Mitoprot done.")
+            # Step 3: Aggregate results into a single CSV
+            df = pd.DataFrame(parsed_results)
+            df.to_csv(output_csv, index=False)
+            print("Mitoprot done.")
+        finally:
+            # Cleanup temporary directory even when the rule errors.
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
 if __name__ == "__main__":
     main()
