@@ -284,11 +284,7 @@ snakemake --cores "$CORES" \
 
 ### Singularity / Apptainer (recommended on HPCs)
 
-Download the image:
-
-```bash
-curl -o CoMR.sif https://doi.org/10.17044/scilifelab.31361839/CoMR.sif
-```
+Download the image `CoMR.sif` from [Figshare](https://doi.org/10.17044/scilifelab.31361839)
 
 Set:
 
