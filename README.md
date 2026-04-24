@@ -181,7 +181,6 @@ fasta_files:
 Or pass them dynamically at runtime:
 
 ```bash
---config fasta=sample.pep
 --config fasta=/path/to/sample.fasta
 --config fasta=/path/to/sample1.fasta,/path/to/sample2.fasta
 ```
@@ -227,7 +226,7 @@ NR_DMND=/path/to/blastdb/nr.dmnd
 TAXONOMY=/path/to/taxonomy
 TARGETP=/path/to/targetp-2.0
 CORES=32
-FASTA_INPUT=proteins.pep
+FASTA_INPUT=/path/to/proteins.pep
 OUTPUT_DIR=/path/to/comr_results
 ```
 
