@@ -55,8 +55,6 @@ tar -xzf targetp-2.0.Linux.tar.gz
 chmod -R 755 targetp-2.0
 ```
 
-CoMR expects this directory to be mounted inside the container as
-`/mnt/software/targetp-2.0`.
 
 ### 4. Prepare the databases
 
@@ -73,7 +71,16 @@ Download and extract the CoMR database bundle `CoMR_DB_hmm` from
 
 Example host location: `/your/path/to/CoMR_DB_hmm`. If you wish to use an optional Custom Database, place it at the same location.
 
-#### 4.2 NR database for DIAMOND
+CoMR expects the alignment and HMM profile files to be present in uncompressed form inside `Alignments/` and `Hmm_profile/`.
+
+If the downloaded bundle contains compressed files, decompress them before running CoMR. For example:
+
+```bash
+gunzip /your/path/to/CoMR_DB_hmm/Alignments/*.gz
+gunzip /your/path/to/CoMR_DB_hmm/Hmm_profile/*.gz
+```
+
+### 4.2 NR database for DIAMOND
 
 If you want the NR search stage, prepare `nr.dmnd` and record its path.
 Example host location: `/your/path/to/blastdb/nr.dmnd`
@@ -96,46 +103,64 @@ diamond makedb \
   --taxonnames names.dmp
 ```
 
-If you already have a DIAMOND NR database without taxonomy support, also keep
-these NCBI taxonomy files available:
+If you already have a DIAMOND NR database **without embedded taxonomy**, keep the following NCBI taxonomy files available:
 
-- `prot.accession2taxid.gz`
+- `prot.accession2taxid.FULL.gz`
 - `nodes.dmp`
 - `names.dmp`
 
-Example host location: `/your/path/to/taxonomy`
+Example host location:
+
+```text
+/your/path/to/taxonomy/
+├── prot.accession2taxid.FULL.gz
+├── nodes.dmp
+└── names.dmp
+``` 
 
 If you do not have an NR database, CoMR can still run with NR searches disabled using
 `enable_nr=false`.
 
 ### 5. Create the runtime config
 
-Copy the template:
+The repository provides `config/config.yaml` as the default configuration template.
+
+For user-specific settings, it is recommended to create a separate runtime copy:
 
 ```bash
 cp config/config.yaml config/config_runtime.yaml
 ```
 
-The template is intended to run with minimal edits. In practice, these are the
-settings users most often change:
+You can then edit `config/config_runtime.yaml` without modifying the original template.
+Using `config/config.yaml` directly is also valid if you do not need a separate user-specific configuration file.
 
 #### 5.1 Optional search settings
+
+##### NR taxonomy modes
+
+| NR setup | `taxonomy_enabled` | External taxonomy files required |
+|---|---:|---|
+| `nr.dmnd` built with embedded taxonomy | `True` | No |
+| `nr.dmnd` without embedded taxonomy | `False` | Yes: `prot.accession2taxid.FULL.gz`, `nodes.dmp`, `names.dmp` |
+| NR search disabled | not applicable | No |
+
+To disable the NR search entirely, run CoMR with:
+
+```bash
+--config enable_nr=false
+```
 
 In case your Diamond-indexed NR database was built without taxonomy:
 
 ```yaml
 diamond_search:
   taxonomy_enabled: False
+
+taxonomy:
+  accession2taxid: "/mnt/taxonomy/prot.accession2taxid.FULL.gz"
+  nodes: "/mnt/taxonomy/nodes.dmp"
+  names: "/mnt/taxonomy/names.dmp"
 ```
-
-Enable an optional CustomDB FASTA:
-
-```yaml
-database:
-  customdb: "/mnt/databases/your_custom_db.fasta"
-```
-
-If `customdb` is set, also run CoMR with `enable_customdb=true` and be sure your Custom DB exists at `/your/path/to/CoMR_DB_hmm`.
 
 Exclude specific taxa from NR hits by taxid:
 
@@ -154,6 +179,19 @@ diamond_search:
 ```
 
 Use taxon exclusion only when `taxonomy_enabled: True`.
+
+##### CustomDB option
+
+Enable an optional CustomDB FASTA:
+
+```yaml
+database:
+  customdb: "/mnt/databases/your_custom_db.fasta"
+```
+
+If `customdb` is set, also run CoMR with `enable_customdb=true` and be sure your Custom DB exists at `/your/path/to/CoMR_DB_hmm`.
+
+
 
 #### 5.2 Resource settings
 
@@ -217,25 +255,29 @@ remain under the CoMR installation directory.
 
 ## Run CoMR
 
-Set your local paths once:
+Set your local host paths once:
 
 ```bash
-COMR_ROOT=/path/to/CoMR
-DB_DIR=/path/to/CoMR_DB_hmm
-NR_DMND=/path/to/blastdb/nr.dmnd
-TAXONOMY=/path/to/taxonomy
-TARGETP=/path/to/targetp-2.0
+PROJECT_DIR="/path/to/your/project_folder"
+
+COMR_ROOT="/path/to/CoMR"
+DB_DIR="/path/to/CoMR_DB_hmm"
+NR_DMND="/path/to/blastdb/nr.dmnd"
+TAXONOMY="/path/to/taxonomy"
+TARGETP="/path/to/targetp-2.0"
+
 CORES=32
-FASTA_INPUT=/path/to/proteins.pep
-OUTPUT_DIR=/path/to/comr_results
+
+FASTA_INPUT="$PROJECT_DIR/input/proteins.pep"
+OUTPUT_DIR="$PROJECT_DIR/comr_results"
+
+mkdir -p "$OUTPUT_DIR"
 ```
 
-Keep the container-internal paths consistent with the config:
-
-- databases under `/mnt/databases`
-- NR under `/mnt/blastdb`
-- taxonomy under `/mnt/taxonomy`
-- TargetP under `/mnt/software/targetp-2.0`
+`TARGETP` must point to the TargetP 2.0 installation directory, not directly to the targetp executable.
+`COMR_ROOT` is the path to the cloned CoMR repository on the host system. It does not need to be located under /opt. 
+A user or project directory is generally preferable to avoid permission issues.
+In the container commands below, the host-side CoMR repository is mounted at `/opt/CoMR`
 
 ### Docker
 
@@ -244,11 +286,12 @@ Pull the image:
 ```bash
 docker pull ghcr.io/thelabupstairs/comr:latest
 ```
+If your FASTA and output directory are outside the CoMR repository, mount their parent project directory explicitly:
+`-v "$PROJECT_DIR:$PROJECT_DIR"` makes files under the project directory visible inside Docker at the same absolute path as on the host.
 
-Run:
-
+Example:
 ```bash
-IMAGE=comr:latest
+IMAGE=ghcr.io/thelabupstairs/comr:latest
 
 docker run --rm \
   --user "$(id -u)":"$(id -g)" \
@@ -258,6 +301,7 @@ docker run --rm \
   -v "$TAXONOMY:/mnt/taxonomy:ro" \
   -v "$TARGETP:/mnt/software/targetp-2.0:ro" \
   -v "$COMR_ROOT:/opt/CoMR" \
+  -v "$PROJECT_DIR:$PROJECT_DIR" \
   -w /opt/CoMR \
   "$IMAGE" \
   snakemake --cores "$CORES" \
@@ -269,17 +313,15 @@ Notes:
 
 - Add `enable_customdb=true` inside the same `--config` block to enable CustomDB
 - Add `enable_nr=false` inside the same `--config` block to skip NR
-- If you override multiple keys, keep them after a single `--config`
-- Use repeated `--group-add <gid>` if your filesystem permissions require
-  additional groups
-
-Example with multiple overrides:
-
+- If you override multiple keys, keep them after a single `--config`:
 ```bash
 snakemake --cores "$CORES" \
   --configfile config/config_runtime.yaml \
   --config fasta="$FASTA_INPUT" output_dir="$OUTPUT_DIR" enable_customdb=true
 ```
+
+- Use `--group-add <gid>` if your filesystem permissions require   additional groups.
+
 
 ### Singularity / Apptainer (recommended on HPCs)
 
@@ -297,12 +339,14 @@ On Slurm systems:
 
 ```bash
 srun singularity exec \
+  --pwd /opt/CoMR \
   --bind "$DB_DIR:/mnt/databases:ro" \
-  --bind "$NR_DMND:/mnt/blastdb:ro" \
+  --bind "$NR_DMND:/mnt/blastdb/nr.dmnd:ro" \
   --bind "$TAXONOMY:/mnt/taxonomy:ro" \
   --bind "$TARGETP:/mnt/software/targetp-2.0:ro" \
   --bind "$COMR_ROOT:/opt/CoMR" \
   --bind "$COMR_ROOT/.inline_cache:/opt/software/MitoFates/bin/modules/_Inline" \
+  --bind "$PROJECT_DIR:$PROJECT_DIR" \
   "$COMR_IMAGE" \
   snakemake --cores "$CORES" \
     --configfile config/config_runtime.yaml \
@@ -313,12 +357,14 @@ On systems without Slurm:
 
 ```bash
 singularity exec \
+  --pwd /opt/CoMR \
   --bind "$DB_DIR:/mnt/databases:ro" \
-  --bind "$NR_DMND:/mnt/blastdb:ro" \
+  --bind "$NR_DMND:/mnt/blastdb/nr.dmnd:ro" \
   --bind "$TAXONOMY:/mnt/taxonomy:ro" \
   --bind "$TARGETP:/mnt/software/targetp-2.0:ro" \
   --bind "$COMR_ROOT:/opt/CoMR" \
   --bind "$COMR_ROOT/.inline_cache:/opt/software/MitoFates/bin/modules/_Inline" \
+  --bind "$PROJECT_DIR:$PROJECT_DIR" \
   "$COMR_IMAGE" \
   snakemake --cores "$CORES" \
     --configfile config/config_runtime.yaml \
@@ -326,17 +372,21 @@ singularity exec \
 ```
 
 If your system uses Apptainer, replace `singularity exec` with `apptainer exec`.
+
 If you are on an HPC system, check your local site documentation or ask your
 system administrators for the correct module setup, scheduler integration, and
 container invocation pattern.
 
 ## Practical reminders
 
-- Record which version and location of every external asset you use
-- Keep host paths and container paths consistent
-- If NR taxonomy is not embedded in `nr.dmnd`, make sure taxonomy files are
-  mounted separately
-- If you disable NR, CoMR can still run, but NR-based search/parse stages will
-  be skipped
-- If you enable CustomDB, make sure the FASTA exists inside the mounted
-  database directory and pass `enable_customdb=true`
+- Record the version and location of every external asset used.
+- Keep host paths and container paths consistent.
+- Mount external FASTA and output directories explicitly when using Docker.
+- If NR taxonomy is not embedded in `nr.dmnd`, set `taxonomy_enabled: False` and provide:
+  - `prot.accession2taxid.FULL.gz`
+  - `nodes.dmp`
+  - `names.dmp`
+- If NR is disabled, NR-based search and parsing stages will be skipped.
+- If CustomDB is enabled, make sure the FASTA exists inside the mounted database directory and pass `enable_customdb=true`.
+- Make sure files in `CoMR_DB_hmm/Alignments/` and `CoMR_DB_hmm/Hmm_profile/` are uncompressed.
+- Prefer a writable user or project directory for the host-side CoMR clone.

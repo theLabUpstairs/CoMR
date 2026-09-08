@@ -28,7 +28,7 @@ diamond_search:
   # excluded_taxids_file: "config/exclusions/listoftaxids"
 
 taxonomy:
-  accession2taxid: "/mnt/taxonomy/prot.accession2taxid.gz"
+  accession2taxid: "/mnt/taxonomy/prot.accession2taxid.FULL.gz"
   nodes: "/mnt/taxonomy/nodes.dmp"
   names: "/mnt/taxonomy/names.dmp"
 
